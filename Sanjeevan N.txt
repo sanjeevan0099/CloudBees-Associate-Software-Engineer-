@@ -1,0 +1,225 @@
+App to be coded:
+
+I want to board a train from London to France. The train ticket will cost $20.
+Create API where you can submit a purchase for a ticket. Details included in the receipt are:
+From, To, User , price paid.
+User should include first and last name, email address
+The user is allocated a seat in the train. Assume the train has only 2 sections, section A and section B.
+An API that shows the details of the receipt for the user
+An API that lets you view the users and seat they are allocated by the requested section
+An API to remove a user from the train
+An API to modify a user's seat
+
+
+
+1)pom.xml
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.example</groupId>
+    <artifactId>train-ticket-app</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.6.2</version>
+        <relativePath/>
+    </parent>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+    </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+
+2)TrainTicketApplication.java
+
+package com.example.trainticketapp;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class TrainTicketApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(TrainTicketApplication.class, args);
+    }
+}
+
+
+3)User.java
+
+package com.example.trainticketapp;
+
+public class User {
+    private String firstName;
+    private String lastName;
+    private String email;
+
+    // Getters and Setters
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+}
+
+
+4)Ticket.java
+
+package com.example.trainticketapp;
+
+public class Ticket {
+    private static long idCounter = 0;
+
+    private long id;
+    private User user;
+    private String from = "London";
+    private String to = "France";
+    private double price = 20.0;
+    private String seat;
+
+    public Ticket(User user, String seat) {
+        this.id = ++idCounter;
+        this.user = user;
+        this.seat = seat;
+    }
+
+    // Getters and Setters
+    public long getId() {
+        return id;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public String getFrom() {
+        return from;
+    }
+
+    public String getTo() {
+        return to;
+    }
+
+    public double getPrice() {
+        return price;
+    }
+
+    public String getSeat() {
+        return seat;
+    }
+
+    public void setSeat(String seat) {
+        this.seat = seat;
+    }
+}
+
+
+5)TicketController.java
+
+package com.example.trainticketapp;
+
+import org.springframework.web.bind.annotation.*;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+
+@RestController
+@RequestMapping("/api/tickets")
+public class TicketController {
+    private List<Ticket> tickets = new ArrayList<>();
+    private final String[] SEATS = {"A1", "A2", "B1", "B2"};
+    private AtomicLong idCounter = new AtomicLong();
+
+    @PostMapping
+    public Ticket purchaseTicket(@RequestBody User user) {
+        String seat = allocateSeat();
+        Ticket ticket = new Ticket(user, seat);
+        tickets.add(ticket);
+        return ticket;
+    }
+
+    @GetMapping("/{id}")
+    public Ticket getTicket(@PathVariable long id) {
+        return tickets.stream().filter(ticket -> ticket.getId() == id).findFirst().orElse(null);
+    }
+
+    @GetMapping
+    public List<Ticket> getAllTickets() {
+        return tickets;
+    }
+
+    @GetMapping("/section/{section}")
+    public List<Ticket> getTicketsBySection(@PathVariable String section) {
+        List<Ticket> sectionTickets = new ArrayList<>();
+        for (Ticket ticket : tickets) {
+            if (ticket.getSeat().startsWith(section)) {
+                sectionTickets.add(ticket);
+            }
+        }
+        return sectionTickets;
+    }
+
+    @PutMapping("/{id}/seat")
+    public Ticket updateSeat(@PathVariable long id, @RequestParam String seat) {
+        for (Ticket ticket : tickets) {
+            if (ticket.getId() == id) {
+                ticket.setSeat(seat);
+                return ticket;
+            }
+        }
+        return null;
+    }
+
+    @DeleteMapping("/{id}")
+    public void removeTicket(@PathVariable long id) {
+        tickets.removeIf(ticket -> ticket.getId() == id);
+    }
+
+    private String allocateSeat() {
+        for (String seat : SEATS) {
+            boolean isOccupied = tickets.stream().anyMatch(ticket -> ticket.getSeat().equals(seat));
+            if (!isOccupied) {
+                return seat;
+            }
+        }
+        return "No available seats";
+    }
+}
+
+
